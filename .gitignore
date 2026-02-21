@@ -1,0 +1,50 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# === Ambientes virtuais ===
+.venv/
+venv/
+env/
+ENV/
+
+# === Jupyter ===
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# === Dados sensíveis (não versionar datasets) ===
+data/*.xlsx
+data/*.csv
+
+# === Modelo treinado (artefato gerado) ===
+models/model.pkl
+
+# === MLflow ===
+mlruns/
+mlartifacts/
+mlflow.db
+
+# === Logs ===
+logs/*.log
+
+# === Testes e cobertura ===
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# === IDEs ===
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === macOS ===
+.DS_Store

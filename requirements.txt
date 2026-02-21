@@ -1,0 +1,19 @@
+# === Dados e ML ===
+pandas==3.0.1
+numpy==2.4.2
+scikit-learn==1.8.0
+joblib==1.5.3
+openpyxl==3.1.5       # leitura de arquivos .xlsx
+
+# === Rastreamento de Experimentos ===
+mlflow==3.10.0
+
+# === API ===
+fastapi==0.129.2
+uvicorn==0.41.0
+httpx==0.28.1          # cliente HTTP (usado nos testes da API)
+
+# === Testes ===
+pytest==9.0.2
+pytest-cov==7.0.0
+anyio==4.12.1          # backend assíncrono para pytest + FastAPI
