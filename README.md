@@ -156,9 +156,15 @@ passos_magicos_datathon/
 
 ### Instalação local
 
-- Python **3.11** ou **3.12**
-- pip atualizado (`pip install --upgrade pip`)
+- Python **3.11** ou **3.12** com módulo `venv` disponível
 - Acesso ao arquivo `data/BASE DE DADOS PEDE 2024 - DATATHON.xlsx`
+
+> **Todos os comandos** nas seções seguintes assumem que o ambiente virtual está **ativado**. Ative-o sempre antes de usar o projeto:</p>
+>
+> ```bash
+> source .venv/bin/activate   # Linux/macOS
+> .venv\Scripts\Activate.ps1  # Windows (PowerShell)
+> ```
 
 ### Docker
 
@@ -176,10 +182,10 @@ git clone <url-do-repositorio>
 cd passos_magicos_datathon
 ```
 
-### 5.2 Crie e ative um ambiente virtual (recomendado)
+### 5.2 Crie e ative o ambiente virtual
 
 ```bash
-# Criar ambiente virtual
+# Criar o ambiente virtual (apenas uma vez)
 python3 -m venv .venv
 
 # Ativar — Linux/macOS
@@ -187,6 +193,14 @@ source .venv/bin/activate
 
 # Ativar — Windows (PowerShell)
 .venv\Scripts\Activate.ps1
+```
+
+Após ativar, o prompt do terminal exibirá `(.venv)` indicando que o ambiente está ativo. **Todos os passos seguintes devem ser executados com o venv ativado.**
+
+Para desativar ao terminar:
+
+```bash
+deactivate
 ```
 
 ### 5.3 Instale as dependências
@@ -199,7 +213,7 @@ pip install -r requirements.txt
 ### 5.4 Verifique a instalação
 
 ```bash
-python3 -c "import fastapi, sklearn, pandas; print('OK')"
+python -c "import fastapi, sklearn, mlflow, pandas; print('OK')"
 ```
 
 ---
@@ -257,10 +271,10 @@ docker inspect --format='{{.State.Health.Status}}' passos-api
 
 ### 7.1 Execute o script de treino
 
-A partir da raiz do projeto (com o ambiente virtual ativado):
+A partir da raiz do projeto (com `.venv` ativado):
 
 ```bash
-python3 src/train.py
+python src/train.py
 ```
 
 O script executa automaticamente:
@@ -304,7 +318,7 @@ Matriz de Confusão:
 
 ### 7.4 Retreino
 
-Para retreinar com novos dados, basta substituir o `.xlsx` no diretório `data/` e rodar `python3 src/train.py` novamente. O `model.pkl` será sobrescrito.
+Para retreinar com novos dados, basta substituir o `.xlsx` no diretório `data/` e rodar `python src/train.py` novamente (com o venv ativado). O `model.pkl` será sobrescrito.
 
 ---
 
@@ -314,7 +328,7 @@ O MLflow é integrado de forma **aditiva**: cada execução de `train.py` regist
 
 ### 8.1 O que é registrado automaticamente
 
-A cada `python3 src/train.py`, o MLflow grava:
+A cada `python src/train.py`, o MLflow grava:
 
 | Categoria | O que é registrado |
 |-----------|-------------------|
@@ -329,7 +343,7 @@ A cada `python3 src/train.py`, o MLflow grava:
 O projeto usa **SQLite** como backend de rastreamento (padrão recomendado no MLflow 3.x). O banco é criado automaticamente em `mlruns/mlflow.db` na primeira execução de `train.py`.
 
 ```bash
-# Abre o painel web na porta 5000 (banco SQLite)
+# Com o venv ativado, mlflow já estará no PATH
 mlflow ui --backend-store-uri sqlite:///mlruns/mlflow.db --host 0.0.0.0 --port 5000
 ```
 
@@ -416,7 +430,7 @@ mlflow server \
 
 # Apontar o projeto para o servidor remoto (antes de rodar train.py)
 export MLFLOW_TRACKING_URI=http://localhost:5000
-python3 src/train.py
+python src/train.py
 ```
 
 > O backend padrão do projeto é `sqlite:///mlruns/mlflow.db`, configurável via variável de ambiente `MLFLOW_TRACKING_URI`.
@@ -469,19 +483,21 @@ curl -X POST http://localhost:8080/invocations \
 
 
 
-### 8.1 Modo desenvolvimento (com reload automático)
+> **Lembre-se:** ative o venv antes de iniciar a API: `source .venv/bin/activate`
+
+### 9.1 Modo desenvolvimento (com reload automático)
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 8.2 Modo produção
+### 9.2 Modo produção
 
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
 ```
 
-### 8.3 Verificar que a API subiu
+### 9.3 Verificar que a API subiu
 
 ```bash
 curl http://localhost:8000/
@@ -698,25 +714,25 @@ print(df.to_string(index=False))
 ### 11.1 Executar todos os testes unitários
 
 ```bash
-python3 -m pytest tests/ -v
+pytest tests/ -v
 ```
 
 ### 11.2 Com relatório de cobertura
 
 ```bash
-python3 -m pytest tests/ -v --cov=src --cov-report=term-missing
+pytest tests/ -v --cov=src --cov-report=term-missing
 ```
 
 ### 11.3 Apenas testes rápidos (sem integração com dataset)
 
 ```bash
-python3 -m pytest tests/ -v -m "not integration"
+pytest tests/ -v -m "not integration"
 ```
 
 ### 11.4 Apenas testes de integração (usa o dataset real)
 
 ```bash
-python3 -m pytest tests/ -v -m "integration"
+pytest tests/ -v -m "integration"
 ```
 
 ### 11.5 Resultado esperado
@@ -874,7 +890,7 @@ Com 70% de defasados (desbalanceamento moderado), a acurácia simples seria enga
 
 | Arquivo | Gerado por | Conteúdo |
 |---------|-----------|---------|
-| `logs/train.log` | `python3 src/train.py` | Métricas do treino, hiperparâmetros, tempo |
+| `logs/train.log` | `python src/train.py` | Métricas do treino, hiperparâmetros, tempo |
 | `logs/api.log` | Aplicação FastAPI | Cada predição com label, probabilidade e latência |
 
 ### 14.2 Formato dos logs
@@ -906,24 +922,25 @@ cat models/metrics.json
 
 ### `ModuleNotFoundError: No module named 'src'`
 
-Execute sempre a partir da **raiz do projeto**, não de dentro de `src/`:
+Execute sempre a partir da **raiz do projeto**, não de dentro de `src/`, e com o venv ativado:
 
 ```bash
 # Correto
 cd passos_magicos_datathon
-python3 src/train.py
+source .venv/bin/activate
+python src/train.py
 
 # Incorreto
 cd src
-python3 train.py
+python train.py
 ```
 
 ### `FileNotFoundError: Modelo não encontrado: models/model.pkl`
 
-O modelo precisa ser treinado antes de iniciar a API:
+O modelo precisa ser treinado antes de iniciar a API (com o venv ativado):
 
 ```bash
-python3 src/train.py
+python src/train.py
 uvicorn app.main:app --reload
 ```
 
@@ -949,24 +966,24 @@ Verifique se:
 Para incluir os testes de integração (que cobrem `train.py`):
 
 ```bash
-python3 -m pytest tests/ --cov=src --cov-report=term-missing
+pytest tests/ --cov=src --cov-report=term-missing
 ```
 
 ### MLflow: `mlflow` não reconhecido como comando
 
-O binário foi instalado em `~/.local/bin`. Adicione ao PATH:
+Certifique-se de que o ambiente virtual está ativado. Com o `.venv` ativo, `mlflow` fica disponível automaticamente em `.venv/bin/mlflow`:
 
 ```bash
-export PATH="$HOME/.local/bin:$PATH"
+# Ativar o venv (se ainda não estiver ativo)
+source .venv/bin/activate
 
-# Para tornar permanente (bash):
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
+# Verificar
+mlflow --version
 ```
 
 ### MLflow: `RESOURCE_DOES_NOT_EXIST` ao carregar modelo do registry
 
-O modelo ainda não foi registrado. Execute `python3 src/train.py` ao menos uma vez antes de chamar `load_model_from_mlflow()`.
+O modelo ainda não foi registrado. Execute `python src/train.py` ao menos uma vez antes de chamar `load_model_from_mlflow()`.
 
 ### MLflow: runs duplicados no mesmo experimento
 
