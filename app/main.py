@@ -14,6 +14,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from src.utils import setup_logging, load_model
 from app.routes import router
@@ -58,3 +59,5 @@ app = FastAPI(
 app.state.app_state = app_state
 
 app.include_router(router)
+
+Instrumentator().instrument(app).expose(app)

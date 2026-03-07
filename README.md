@@ -23,7 +23,8 @@
 13. [Detalhes do Modelo](#13-detalhes-do-modelo)
 14. [Decisões Técnicas Relevantes](#14-decisões-técnicas-relevantes)
 15. [Monitoramento e Logs](#15-monitoramento-e-logs)
-16. [Resolução de Problemas](#16-resolução-de-problemas)
+16. [CI/CD — Integração e Entrega Contínua](#16-cicd--integração-e-entrega-contínua)
+17. [Resolução de Problemas](#17-resolução-de-problemas)
 
 ---
 
@@ -100,7 +101,9 @@ Dataset PEDE 2024 (.xlsx)
 | Dados | pandas, numpy, openpyxl |
 | API | FastAPI, uvicorn |
 | Testes | pytest, pytest-cov |
-| Deploy | Docker |
+| Deploy | Docker, Docker Compose |
+| Monitoramento | Prometheus, Grafana |
+| CI/CD | GitHub Actions |
 
 ---
 
@@ -145,8 +148,16 @@ passos_magicos_datathon/
 │   ├── test_train.py
 │   └── test_utils.py
 │
+├── .github/
+│   └── workflows/
+│       ├── ci.yml             ← pipeline de testes e build (todo push)
+│       └── cd.yml             ← publicação da imagem Docker (merge na main)
+│
 ├── Dockerfile
+├── docker-compose.yml         ← sobe API + Prometheus + Grafana
+├── prometheus.yml             ← configuração de scraping do Prometheus
 ├── requirements.txt
+├── CICD_OVERVIEW.md           ← visão geral de CI/CD aplicada ao projeto
 └── README.md
 ```
 
@@ -168,7 +179,7 @@ passos_magicos_datathon/
 
 ### Docker
 
-- Docker Engine **20.10+**
+- Docker Engine **20.10+** e Docker Compose **v2+**
 - `model.pkl` deve existir em `models/` antes do build (veja [Treino do Modelo](#7-treino-do-modelo))
 
 ---
@@ -263,6 +274,31 @@ O Docker verifica automaticamente o endpoint `/health` a cada 30 segundos. Você
 
 ```bash
 docker inspect --format='{{.State.Health.Status}}' passos-api
+```
+
+### 6.6 Stack completa com monitoramento (recomendado)
+
+Para subir a API junto com Prometheus e Grafana em um único comando:
+
+```bash
+docker compose up --build
+```
+
+| Serviço | URL | Credenciais |
+|---------|-----|-------------|
+| API FastAPI | http://localhost:8000/docs | — |
+| Métricas (Prometheus) | http://localhost:8000/metrics | — |
+| Prometheus UI | http://localhost:9090 | — |
+| Grafana | http://localhost:3000 | `admin` / `admin` |
+
+**Configurar Grafana (uma vez):**
+1. Acesse http://localhost:3000 e faça login
+2. **Connections > Add data source > Prometheus** → URL: `http://prometheus:9090` → Save & Test
+3. **Dashboards > Import** → ID `19797` → Import (dashboard FastAPI pronto)
+
+Para parar tudo:
+```bash
+docker compose down
 ```
 
 ---
@@ -511,7 +547,7 @@ Resposta esperada:
 }
 ```
 
-### 8.4 Documentação interativa (Swagger)
+### 9.4 Documentação interativa (Swagger)
 
 Acesse no navegador: **http://localhost:8000/docs**
 
@@ -711,34 +747,34 @@ print(df.to_string(index=False))
 
 ## 12. Testes
 
-### 11.1 Executar todos os testes unitários
+### 12.1 Executar todos os testes unitários
 
 ```bash
 pytest tests/ -v
 ```
 
-### 11.2 Com relatório de cobertura
+### 12.2 Com relatório de cobertura
 
 ```bash
 pytest tests/ -v --cov=src --cov-report=term-missing
 ```
 
-### 11.3 Apenas testes rápidos (sem integração com dataset)
+### 12.3 Apenas testes rápidos (sem integração com dataset)
 
 ```bash
 pytest tests/ -v -m "not integration"
 ```
 
-### 11.4 Apenas testes de integração (usa o dataset real)
+### 12.4 Apenas testes de integração (usa o dataset real)
 
 ```bash
 pytest tests/ -v -m "integration"
 ```
 
-### 11.5 Resultado esperado
+### 12.5 Resultado esperado
 
 ```
-86 passed, 5 deselected in 1.50s
+101 passed in ~2s
 
 Name                         Stmts   Miss  Cover
 ------------------------------------------------
@@ -746,15 +782,15 @@ src/__init__.py                  0      0   100%
 src/evaluate.py                 36      0   100%
 src/feature_engineering.py      39      0   100%
 src/preprocessing.py            70      5    93%
-src/train.py                    56     29    48%
+src/train.py                    56     10    82%
 src/utils.py                    19      0   100%
 ------------------------------------------------
-TOTAL                          220     34    85%
+TOTAL                          220     28    87%
 ```
 
-**Cobertura: 85%** — acima do mínimo exigido de 80%.
+**Cobertura: 87%** — acima do mínimo exigido de 80%.
 
-### 11.6 Organização dos testes
+### 12.6 Organização dos testes
 
 | Arquivo | Módulo testado | Nº de testes |
 |---------|---------------|-------------|
@@ -763,6 +799,7 @@ TOTAL                          220     34    85%
 | `test_evaluate.py` | `src/evaluate.py` | 14 |
 | `test_train.py` | `src/train.py` | 10 (+6 integração) |
 | `test_utils.py` | `src/utils.py` | 11 |
+| `test_mlflow_integration.py` | MLflow tracking/registry | 10 (+2 integração) |
 
 ---
 
@@ -886,21 +923,39 @@ Com 70% de defasados (desbalanceamento moderado), a acurácia simples seria enga
 
 ## 15. Monitoramento e Logs
 
-### 14.1 Arquivos de log
+### 15.1 Métricas em tempo real — Prometheus + Grafana
+
+A API expõe o endpoint `/metrics` (formato Prometheus) via `prometheus-fastapi-instrumentator`. As métricas coletadas incluem:
+
+| Métrica | O que mede |
+|---------|-----------|
+| `http_requests_total` | Total de requisições por rota e status code |
+| `http_request_duration_seconds` | Latência (histograma) por rota |
+| `http_requests_in_progress` | Requisições em andamento no momento |
+
+Para visualizar graficamente, suba a stack completa:
+
+```bash
+docker compose up --build
+```
+
+Acesse o Grafana em http://localhost:3000 e importe o dashboard ID `19797`.
+
+### 15.2 Arquivos de log
 
 | Arquivo | Gerado por | Conteúdo |
 |---------|-----------|---------|
 | `logs/train.log` | `python src/train.py` | Métricas do treino, hiperparâmetros, tempo |
 | `logs/api.log` | Aplicação FastAPI | Cada predição com label, probabilidade e latência |
 
-### 14.2 Formato dos logs
+### 15.3 Formato dos logs
 
 ```
 2024-11-15 10:23:45 | INFO     | app.routes | Predição: defasado | prob_defasado=0.832 | latência=12.3ms
 2024-11-15 10:23:51 | INFO     | app.routes | Predição: no nível | prob_defasado=0.218 | latência=9.8ms
 ```
 
-### 14.3 Acompanhar logs em tempo real
+### 15.4 Acompanhar logs em tempo real
 
 ```bash
 # Logs da API
@@ -910,7 +965,7 @@ tail -f logs/api.log
 tail -f logs/train.log
 ```
 
-### 14.4 Verificar métricas salvas
+### 15.5 Verificar métricas salvas
 
 ```bash
 cat models/metrics.json
@@ -918,7 +973,49 @@ cat models/metrics.json
 
 ---
 
-## 16. Resolução de Problemas
+## 16. CI/CD — Integração e Entrega Contínua
+
+O projeto usa **GitHub Actions** para automação do ciclo de desenvolvimento. Os workflows estão em `.github/workflows/`.
+
+### 16.1 Pipeline de CI (`ci.yml`)
+
+Disparado a cada push em qualquer branch e em pull requests para `main`:
+
+1. Instala dependências
+2. Executa os 101 testes (`pytest -m "not integration"`)
+3. Faz o build da imagem Docker para validar o `Dockerfile`
+
+### 16.2 Pipeline de CD (`cd.yml`)
+
+Disparado a cada merge na `main`:
+
+1. Faz o build da imagem Docker
+2. Publica no Docker Hub com duas tags: `latest` e o SHA do commit (para rollback)
+
+### 16.3 Configurar secrets no GitHub
+
+No repositório: **Settings > Secrets and variables > Actions > New repository secret**
+
+| Secret | Valor |
+|--------|-------|
+| `DOCKERHUB_USERNAME` | Seu usuário do Docker Hub |
+| `DOCKERHUB_TOKEN` | Token em Docker Hub > Account Settings > Security > New Access Token |
+
+### 16.4 Forçar execução manual
+
+```bash
+# Push vazio para disparar o CI
+git commit --allow-empty -m "ci: force run"
+git push
+```
+
+Ou pelo GitHub: **Actions > selecione o workflow > Run workflow**.
+
+Para mais detalhes sobre a estratégia de CI/CD, consulte o arquivo `CICD_OVERVIEW.md`.
+
+---
+
+## 17. Resolução de Problemas
 
 ### `ModuleNotFoundError: No module named 'src'`
 
