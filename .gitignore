@@ -24,10 +24,6 @@ pyvenv.cfg
 .ipynb_checkpoints/
 *.ipynb_checkpoints
 
-# === Dados sensíveis (não versionar datasets) ===
-data/*.xlsx
-data/*.csv
-
 # === Modelo treinado (artefato gerado) ===
 models/model.pkl
 
