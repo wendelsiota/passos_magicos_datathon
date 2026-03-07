@@ -22,6 +22,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Threshold de decisão ajustado para o desbalanceamento da classe (70% defasado).
+# O default sklearn (0.5) subestima defasados em entradas extremas/OOD.
+# Com 0.30: F1=0.9119, Recall=0.9917 vs F1=0.9249, Recall=0.9750 no threshold=0.5.
+PREDICT_THRESHOLD = 0.30
+
 
 # --------------------------------------------------------------------------- #
 # Schemas de entrada e saída
@@ -106,11 +111,11 @@ def predict(features: StudentFeatures, request: Request):
     df = engineer_features(df)
     X = df[get_model_features()]
 
-    # Predição
-    pred = int(model.predict(X)[0])
+    # Predição — usa threshold ajustado em vez do default sklearn (0.5)
     proba = model.predict_proba(X)[0]
     prob_defasado = float(proba[1])
     prob_no_nivel = float(proba[0])
+    pred = 1 if prob_defasado >= PREDICT_THRESHOLD else 0
 
     elapsed_ms = (time.time() - start) * 1000
     label = "defasado" if pred == 1 else "no nível"
